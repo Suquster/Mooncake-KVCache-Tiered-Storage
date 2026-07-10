@@ -1,0 +1,9 @@
+# 上游 Mooncake 作为 Git 子模块引入，固定到 mooncake.lock 中记录的精确 commit。
+# 本项目不在原地修改上游源码树（需求 6.2）；所有交互均通过 src/adapter/* 适配层进行。
+# 锁定基线：tag v0.3.6.post1 / commit 356d99fb28746d274241b6792c2f7c2fe17e3b29 / version 0.3.6.post1
+[submodule "third_party/mooncake"]
+	path = third_party/mooncake
+	url = https://github.com/kvcache-ai/Mooncake.git
+	branch = v0.3.6.post1
+	# 实际锁定的 commit 由父仓库的 gitlink（索引中的子模块指针）记录，
+	# 并在 mooncake.lock 中以 mooncake_commit 字段冗余记录以便离线审计。

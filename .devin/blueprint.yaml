@@ -1,0 +1,17 @@
+# https://docs.devin.ai/onboard-devin/environment-yaml
+initialize: |
+  sudo apt-get update && sudo apt-get install -y cmake g++ make clang-tidy
+  pip install pytest hypothesis pybind11
+maintenance: |
+  git submodule update --init --depth 1 third_party/mooncake
+knowledge:
+  - name: build
+    contents: |
+      cmake -S . -B build -DENABLE_RAPIDCHECK=ON && cmake --build build -j$(nproc)
+  - name: test
+    contents: |
+      ctest --test-dir build --output-on-failure
+      python -m pytest tests/ -q
+  - name: notes
+    contents: |
+      Upstream Mooncake is a read-only submodule pinned by mooncake.lock; CMake configure fails if the submodule HEAD doesn't match the lock.

@@ -1,0 +1,20 @@
+# Mooncake 上游依赖锁定文件（mooncake.lock）
+#
+# 作用：固定本项目所依赖的上游 Mooncake（kvcache-ai/Mooncake）精确版本。
+# 该文件是「构建期版本校验」与「基准报告溯源」的唯一可信来源（single source of truth）：
+#   - 构建系统（CMake，见 cmake/CheckMooncakeVersion.cmake）在配置阶段读取本文件，
+#     校验 third_party/mooncake 子模块的实际版本是否与此处锁定的版本一致；
+#     若缺失或不一致，则以「指明所需 Mooncake 版本」的错误信息使构建失败（需求 6.5）。
+#   - 基准框架在每次运行的报告中回写此处的 commit 哈希，保证结果可溯源（需求 5.5）。
+#
+# 格式：每行 KEY=VALUE，'#' 开头为注释；保持纯文本以便 CMake / Python / Shell 均可解析。
+# 对应需求：1.3（记录锁定的上游 commit 哈希与版本）、6.3（构建链接到锁定版本）。
+
+mooncake_repo=https://github.com/kvcache-ai/Mooncake.git
+mooncake_commit=356d99fb28746d274241b6792c2f7c2fe17e3b29
+mooncake_version=0.3.6.post1
+mooncake_tag=v0.3.6.post1
+mooncake_license=Apache-2.0
+mooncake_submodule_path=third_party/mooncake
+# 记录锁定时间（UTC，ISO-8601），便于审计依赖更新历史。
+locked_at=2026-06-10T00:00:00Z

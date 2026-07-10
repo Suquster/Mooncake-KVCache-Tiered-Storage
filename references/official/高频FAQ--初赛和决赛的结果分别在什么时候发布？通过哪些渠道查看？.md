@@ -1,0 +1,6 @@
+# 初赛和决赛的结果分别在什么时候发布？通过哪些渠道查看？
+
+> 来源：第八届CCF开源创新大赛官网（高频FAQ），发布时间 2026/03/25
+> 官网入口：https://www.gitlink.org.cn/competitions/2026
+
+PHA+PHN0cm9uZz7nrZQ8L3N0cm9uZz48c3BhbiBzdHlsZT0iY29sb3I6IHJnYigwLCAwLCAwKTsgZm9udC1mYW1pbHk6IOW+rui9r+mbhem7kTsiPu+8muWInei1m+e7k+aenOS6jiAyMDI2IOW5tCA3IOaciCAxNyDml6Xlj5HluIPvvIzlhrPotZvnu5Pmnpzkuo4gMjAyNiDlubQgOCDmnIggMTEg5pel5Y+R5biD77yb5Y+v6YCa6L+H6LWb5LqL5a6Y5pa5572R56uZ44CM6LWb5LqL5YWs5ZGK44CN5p2/5Z2X44CBQ0NGIOW8gOa6kOWPkeWxleaKgOacr+WnlOWRmOS8muWFrOS8l+WPt+afpeivouOAgjwvc3Bhbj48L3A+

@@ -1,0 +1,13 @@
+# 静态分析门禁（CI job: clang-tidy）：聚焦并发/内存安全与核心正确性类检查。
+Checks: >
+  bugprone-*,
+  concurrency-*,
+  performance-*,
+  clang-analyzer-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-narrowing-conversions,
+  -performance-enum-size
+# 说明：StatusCode/DType 刻意采用固定宽度基类型（序列化/ABI 稳定性），
+# 与 performance-enum-size 的「最小化」建议冲突，故排除该检查。
+WarningsAsErrors: ''
+HeaderFilterRegex: '(src/(adapter|storage|datapath|scheduler|core)/|src/include/project/)'

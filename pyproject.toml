@@ -1,0 +1,49 @@
+# =============================================================================
+# Python 工程骨架 —— 编排层（vLLM 适配）与基准框架
+# =============================================================================
+# 核心存储与传输路径用 C++ 实现；基准、编排与 vLLM 集成用 Python 实现。
+# Python 侧通过 pybind11 绑定（_mooncake_kvcache）调用 C++ 核心。
+# =============================================================================
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mooncake-kvcache-optimization"
+version = "0.1.0"
+description = "基于上游 Mooncake 的分层 KVCache 优化项目（CCF 2026 赛题二）的 Python 编排与基准框架"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Mooncake KVCache Optimization Contest Team" }]
+keywords = ["kvcache", "mooncake", "vllm", "llm-serving", "rdma", "benchmark"]
+
+# 运行期依赖：基准框架与编排所需的最小集合。vLLM / torch 等重型可选依赖
+# 放入 optional-dependencies，避免在仅做基准解析/校验时被强制安装。
+dependencies = []
+
+[project.optional-dependencies]
+# 测试工具链：Hypothesis 属性测试（每属性 ≥ 100 次迭代）+ pytest。
+test = ["pytest>=7.0", "hypothesis>=6.100"]
+# vLLM 集成所需的重型依赖（在具备目标硬件的部署环境中安装）。
+vllm = ["vllm", "torch"]
+
+[tool.setuptools]
+# 源码位于 python/ 目录下，按包名映射。
+package-dir = { "" = "python" }
+
+[tool.setuptools.packages.find]
+where = ["python"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# 统一属性测试标签前缀，便于检索：
+#   Feature: mooncake-kvcache-optimization, Property {n}: {text}
+markers = [
+  "property: 基于 Hypothesis 的属性测试（最少 100 次迭代）",
+  "smoke: 冒烟/合规检查",
+]
+
+# Hypothesis 全局配置：保证属性测试默认至少运行 100 个样例（项目硬性标准）。
+[tool.hypothesis]
+max_examples = 100

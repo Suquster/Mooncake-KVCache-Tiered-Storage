@@ -1,0 +1,6 @@
+# 什么情况下会触发评审 “一票否决”，直接取消参赛或获奖资格？
+
+> 来源：第八届CCF开源创新大赛官网（高频FAQ），发布时间 2026/03/25
+> 官网入口：https://www.gitlink.org.cn/competitions/2026
+
+PHA+PHN0cm9uZz7nrZQ8L3N0cm9uZz48c3BhbiBzdHlsZT0iY29sb3I6IHJnYigwLCAwLCAwKTsgZm9udC1mYW1pbHk6IOW+rui9r+mbhem7kTsiPu+8muinpueisOS7peS4i+i1m+S6i+e6oue6v+WwhuebtOaOpeinpuWPkeS4gOelqOWQpuWGs++8muS9nOWTgeaKhOiirSAvIOS+teadgyAvIOS8qumAoOadkOaWmeOAgeengeS4i+aOpeinpui0v+i1guivhOWuoeS4k+WutuOAgeWPgui1m+S6uuWRmCAvIOmYn+S8jeS4jeespuWQiOWHhuWFpemXqOanm+OAgeS9nOWTgeWQq+i/neazlea2ieWvhuWGheWuueOAgeacquaMieinhOWumuaPkOS6pOefpeivhuS6p+adg+aJv+ivuuWHveaIluWGheWuueS4jeWunuOAgeWFtuS7lui/neWPjei1m+S6i+WFrOW5s+WFrOato+WOn+WImeeahOihjOS4uuOAgjwvc3Bhbj48L3A+

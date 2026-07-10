@@ -1,0 +1,24 @@
+# C++ / CMake 构建产物
+/build/
+/build-*/
+/cmake-build-*/
+CMakeCache.txt
+CMakeFiles/
+*.o
+*.a
+*.so
+
+# Python 缓存与构建产物
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.hypothesis/
+build/
+dist/
+.venv/
+venv/
+
+# 编辑器/系统
+.DS_Store
+*.swp

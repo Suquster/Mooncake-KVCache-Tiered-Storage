@@ -1,0 +1,6 @@
+# 参赛成果的开源协议有什么要求？
+
+> 来源：第八届CCF开源创新大赛官网（高频FAQ），发布时间 2026/03/25
+> 官网入口：https://www.gitlink.org.cn/competitions/2026
+
+PHA+PHN0cm9uZz7nrZQ8L3N0cm9uZz48c3BhbiBzdHlsZT0iY29sb3I6IHJnYigwLCAwLCAwKTsgZm9udC1mYW1pbHk6IOW+rui9r+mbhem7kTsiPu+8muWPgui1m+aIkOaenOmcgOmHh+eUqOi1m+mimOaMh+WumueahOW8gOa6kOWNj+iuru+8jOS4u+a1geS4uiBBcGFjaGUgMi4w77yM6YOo5YiG6LWb6aKY6YeH55SoIE11bGFuUFNMLTIuMOOAgU1QTCAyLjDjgIFNSVQg562J77yM6ZyA5Lil5qC86YG15b6q5a+55bqU5Y2P6K6u6KeE6IyD44CCPC9zcGFuPjwvcD4=

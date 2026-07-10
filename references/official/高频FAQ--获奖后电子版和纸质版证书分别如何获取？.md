@@ -1,0 +1,6 @@
+# 获奖后电子版和纸质版证书分别如何获取？
+
+> 来源：第八届CCF开源创新大赛官网（高频FAQ），发布时间 2026/03/25
+> 官网入口：https://www.gitlink.org.cn/competitions/2026
+
+PHA+PHN0cm9uZz7nrZQ8L3N0cm9uZz48c3BhbiBzdHlsZT0iY29sb3I6IHJnYigwLCAwLCAwKTsgZm9udC1mYW1pbHk6IOW+rui9r+mbhem7kTsiPu+8mueUteWtkOeJiOivgeS5puWPr+WcqOS4reWbveiuoeeul+acuuWtpuS8muWumOe9keeZu+W9leWQju+8jOWcqCDigJzmiJHnmoTotKHnjK7igJ0g5p2/5Z2X5p+l6K+i6I635Y+W77yb57q46LSo54mI6K+B5Lmm55Sx57uE5aeU5Lya5qC55o2u5Zui6Zif6Zif6ZW/5o+Q5L6b55qE5Zyw5Z2A57uf5LiA5a+E5Ye644CCPC9zcGFuPjwvcD4=

@@ -1,0 +1,6 @@
+# 大赛奖金的发放主体有哪些类型？如何知道自己参赛赛题的发放方式？
+
+> 来源：第八届CCF开源创新大赛官网（高频FAQ），发布时间 2026/03/25
+> 官网入口：https://www.gitlink.org.cn/competitions/2026
+
+PHA+PHN0cm9uZz7nrZQ8L3N0cm9uZz48c3BhbiBzdHlsZT0iY29sb3I6IHJnYigwLCAwLCAwKTsgZm9udC1mYW1pbHk6IOW+rui9r+mbhem7kTsiPu+8muWllumHkeWPkeaUvuS4u+S9k+WIhuS4uuS4pOexu++8jOS4gOexu+aYr+S4reWbveiuoeeul+acuuWtpuS8mu+8iENDRu+8iS8g5YyX5Lqs5YWJ5Y2O56eR5oqA5Z+66YeR5Lya5Luj5Li65Y+R5pS+77yM5Y+m5LiA57G75piv6LWb6aKY5o+Q5L6b5pa56Ieq6KGM5Y+R5pS+77yb5ZCE6LWb6aKY55qE5YW35L2T5Y+R5pS+5Li75L2T44CB5Y+R5pS+57uG5YiZ5Z2H5Zyo5a+55bqU6LWb6aKY55qE44CK6LWb6aKY5oyH5Y2X44CL5Lit6K+m57uG5LuL57uN77yM5Y+v5p+l6ZiF6LWb6aKY5oyH5Y2X56Gu6K6k44CCPC9zcGFuPjwvcD4=
