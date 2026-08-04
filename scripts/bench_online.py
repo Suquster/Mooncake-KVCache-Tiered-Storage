@@ -31,6 +31,32 @@ def _make_text(rng: random.Random, tokens: int) -> str:
     return " ".join(rng.choice(_WORDS) for _ in range(tokens))
 
 
+def _load_sharegpt(
+    path: str, sessions: int, prefix_chars: int, rng: random.Random
+) -> tuple[list[str], list[list[str]]]:
+    """从 ShareGPT JSON 构建真实会话：返回 (会话前缀列表, 每会话轮次问题列表)。
+
+    前缀 = 长文档式拼接的真实对话文本（裁到 prefix_chars），轮次问题取自
+    同一会话的真实 human 发言（裁短），复现真实 token 分布与多轮复用。
+    """
+    with open(path, encoding="utf-8") as f:
+        data = json.load(f)
+    convs = [
+        [t["value"] for t in c.get("conversations", []) if t.get("value")]
+        for c in data
+    ]
+    convs = [c for c in convs if len(c) >= 4 and sum(len(x) for x in c) >= prefix_chars]
+    rng.shuffle(convs)
+    assert len(convs) >= sessions, f"可用会话不足: {len(convs)} < {sessions}"
+    prefixes: list[str] = []
+    questions: list[list[str]] = []
+    for c in convs[:sessions]:
+        prefixes.append(" ".join(c)[:prefix_chars])
+        qs = [t[:400] for t in c if t.strip()][:16]
+        questions.append(qs)
+    return prefixes, questions
+
+
 async def _one_request(
     session: aiohttp.ClientSession,
     base_url: str,
@@ -71,12 +97,19 @@ async def _one_request(
 
 async def run(args: argparse.Namespace) -> None:
     rng = random.Random(42)
-    shared_prefix = _make_text(rng, args.prefix_tokens)
     # 每会话独立扩展前缀 + 多轮历史累积（round r 复用 round r-1 的前缀）。
-    sessions = []
-    for s in range(args.sessions):
-        session_prefix = shared_prefix + " " + _make_text(rng, 512)
-        sessions.append(session_prefix)
+    sessions: list[str] = []
+    session_questions: list[list[str]] | None = None
+    if args.sharegpt:
+        # 真实数据集：每会话前缀与轮次问题均来自 ShareGPT 真实对话。
+        # 粗估 1 token ≈ 4 字符（英文）。
+        sessions, session_questions = _load_sharegpt(
+            args.sharegpt, args.sessions, args.prefix_tokens * 4, rng
+        )
+    else:
+        shared_prefix = _make_text(rng, args.prefix_tokens)
+        for s in range(args.sessions):
+            sessions.append(shared_prefix + " " + _make_text(rng, 512))
 
     sem = asyncio.Semaphore(args.concurrency)
     results: list[tuple[float, float, int]] = []
@@ -88,7 +121,11 @@ async def run(args: argparse.Namespace) -> None:
         async def run_session(idx: int) -> None:
             history = sessions[idx]
             for r in range(args.rounds):
-                question = _make_text(rng, 32)
+                if session_questions is not None:
+                    qs = session_questions[idx]
+                    question = qs[r % len(qs)]
+                else:
+                    question = _make_text(rng, 32)
                 prompt = history + " 用户问题：" + question
                 async with sem:
                     ttft, total, tokens = await _one_request(
@@ -146,6 +183,11 @@ def main() -> None:
     parser.add_argument("--max-tokens", type=int, default=64)
     parser.add_argument("--concurrency", type=int, default=8)
     parser.add_argument("--scan-sessions", type=int, default=0)
+    parser.add_argument(
+        "--sharegpt",
+        default="",
+        help="ShareGPT JSON 路径；非空则用真实对话构建会话前缀与问题",
+    )
     parser.add_argument("--tag", default="run")
     args = parser.parse_args()
     asyncio.run(run(args))

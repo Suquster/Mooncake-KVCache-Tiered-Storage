@@ -1,0 +1,16 @@
+{"tag": "sharegpt-lru-rep1", "requests": 128, "ttft_p50_s": 0.666, "ttft_p95_s": 0.957, "ttft_mean_s": 0.623, "wall_s": 32.3, "gen_tokens": 7666, "tokens_per_s": 237.7}
+{"tag": "scanheavy-lru-rep1", "requests": 96, "ttft_p50_s": 0.441, "ttft_p95_s": 2.073, "ttft_mean_s": 0.645, "wall_s": 100.2, "gen_tokens": 6134, "tokens_per_s": 61.2}
+{"tag": "sharegpt-s3fifo-rep1", "requests": 128, "ttft_p50_s": 0.683, "ttft_p95_s": 0.974, "ttft_mean_s": 0.644, "wall_s": 32.6, "gen_tokens": 7669, "tokens_per_s": 235.4}
+{"tag": "scanheavy-s3fifo-rep1", "requests": 96, "ttft_p50_s": 0.526, "ttft_p95_s": 1.866, "ttft_mean_s": 0.66, "wall_s": 100.2, "gen_tokens": 6136, "tokens_per_s": 61.3}
+{"tag": "sharegpt-lru-rep2", "requests": 128, "ttft_p50_s": 0.682, "ttft_p95_s": 0.974, "ttft_mean_s": 0.642, "wall_s": 32.6, "gen_tokens": 7669, "tokens_per_s": 235.0}
+{"tag": "scanheavy-lru-rep2", "requests": 96, "ttft_p50_s": 0.538, "ttft_p95_s": 1.998, "ttft_mean_s": 0.685, "wall_s": 100.3, "gen_tokens": 6136, "tokens_per_s": 61.2}
+{"tag": "sharegpt-s3fifo-rep2", "requests": 128, "ttft_p50_s": 0.55, "ttft_p95_s": 0.973, "ttft_mean_s": 0.591, "wall_s": 32.6, "gen_tokens": 7661, "tokens_per_s": 235.1}
+{"tag": "scanheavy-s3fifo-rep2", "requests": 96, "ttft_p50_s": 0.517, "ttft_p95_s": 1.999, "ttft_mean_s": 0.658, "wall_s": 100.2, "gen_tokens": 6134, "tokens_per_s": 61.2}
+{"tag": "longctx-lru-rep1", "requests": 64, "ttft_p50_s": 0.287, "ttft_p95_s": 1.923, "ttft_mean_s": 0.482, "wall_s": 11.8, "gen_tokens": 4030, "tokens_per_s": 341.9}
+{"tag": "longctx-s3fifo-rep1", "requests": 64, "ttft_p50_s": 0.304, "ttft_p95_s": 1.96, "ttft_mean_s": 0.507, "wall_s": 11.9, "gen_tokens": 4030, "tokens_per_s": 339.4}
+{"tag": "longctx-lru-rep2", "requests": 64, "ttft_p50_s": 0.352, "ttft_p95_s": 1.944, "ttft_mean_s": 0.521, "wall_s": 11.9, "gen_tokens": 4022, "tokens_per_s": 339.2}
+{"tag": "longctx-s3fifo-rep2", "requests": 64, "ttft_p50_s": 0.311, "ttft_p95_s": 1.981, "ttft_mean_s": 0.517, "wall_s": 11.9, "gen_tokens": 4023, "tokens_per_s": 337.9}
+{"tag": "sharegpt-tier2-rep1", "requests": 128, "ttft_p50_s": 0.668, "ttft_p95_s": 0.937, "ttft_mean_s": 0.625, "wall_s": 32.3, "gen_tokens": 7663, "tokens_per_s": 237.5}
+{"tag": "sharegpt-tier3-rep1", "requests": 128, "ttft_p50_s": 0.234, "ttft_p95_s": 0.837, "ttft_mean_s": 0.319, "wall_s": 18.9, "gen_tokens": 7634, "tokens_per_s": 403.2}
+{"tag": "sharegpt-tier2-rep2", "requests": 128, "ttft_p50_s": 0.674, "ttft_p95_s": 0.967, "ttft_mean_s": 0.641, "wall_s": 32.5, "gen_tokens": 7669, "tokens_per_s": 236.3}
+{"tag": "sharegpt-tier3-rep2", "requests": 128, "ttft_p50_s": 0.23, "ttft_p95_s": 0.732, "ttft_mean_s": 0.31, "wall_s": 18.9, "gen_tokens": 7657, "tokens_per_s": 405.2}
