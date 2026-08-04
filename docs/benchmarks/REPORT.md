@@ -117,6 +117,41 @@ toolagent +10pp），且 HBM 占用恒定——验证「HBM 装不下的复用�
 而非丢弃」的分层收益随可用 DRAM 线性变现。生产部署可据主机内存预算把 slow
 因子调至 8×+，进一步压低 TTFT。
 
+## 真实 GPU 在线验证（vLLM 0.26 + RTX 5090）
+
+单卡 RTX 5090（32GB，driver 610.43，CUDA 13）+ vLLM 0.26.0 +
+Qwen2.5-7B-Instruct（bf16，max_model_len=16384）真实推理服务在线测量。
+本项目 S3-FIFO 策略经 `vllm_adapter.offloading_spec`（OffloadingSpecFactory
+`spec_module_path` 插件，零上游源码修改）接入 vLLM OffloadingConnector 的
+CPU 卸载层。负载：前缀复用多轮会话（共享 2000 词系统前缀 + 会话内历史
+累积，`scripts/bench_online.py`，temperature=0、并发 8、流式 TTFT）。
+
+GPU KV cache 限制为 2GiB（37,440 tokens）制造真实容量压力：
+
+| 配置（24 会话 × 4 轮） | TTFT p50 | TTFT p95 | 吞吐 tok/s |
+|---|---:|---:|---:|
+| GPU-only（无压力，12.7GiB KV） | 0.186s | 0.804s | 434 |
+| GPU-only（压力，2GiB KV） | 0.666s | 1.285s | 242 |
+| + CPU 卸载 12GB（lru） | 0.273s | 1.130s | 417 |
+| + CPU 卸载 12GB（**s3fifo，本项目**） | 0.274s | 1.136s | 416 |
+
+分层卸载把压力场景 TTFT p50 拉回 **2.4×**（0.666→0.274s）、吞吐 **1.7×**
+（242→416 tok/s）——验证分层 KVCache 的核心价值主张。CPU 容量充足时
+（12GB ≳ 全工作集）lru 与 s3fifo 等价（均全命中）。
+
+CPU 卸载层也承压（3GB < 工作集，40 会话 × 4 轮）时策略差异显现：
+
+| 淘汰策略（CPU 3GB） | TTFT p50 | TTFT p95 | TTFT mean |
+|---|---:|---:|---:|
+| lru（vLLM 内置） | 0.651s | 1.134s | 0.650s |
+| **s3fifo（本项目）** | **0.491s** | **0.918s** | **0.524s** |
+
+真实在线负载下本项目 S3-FIFO 较 LRU：TTFT p50 **−25%**、p95 **−19%**、
+mean **−19%**——把离线 trace 的命中率优势兑现成了真实推理时延收益。
+（方法注记：每配置独立冷启动服务、同一确定性负载 seed=42；5090 需
+`VLLM_USE_FLASHINFER_SAMPLER=0` + `VLLM_ATTENTION_BACKEND=TRITON_ATTN`
+规避 flashinfer 对 sm_120 的 JIT 限制。）
+
 ## 多租户配额隔离（tenant quota）
 
 `TierConfig::tenant_weights` 非空即启用加权 max-min 配额：租户每层份额 =
