@@ -47,6 +47,11 @@ struct TierConfig {
   std::optional<std::size_t> dram_capacity_bytes;
   std::optional<std::size_t> nvme_capacity_bytes;  // nullopt => NVMe 禁用
   double high_water_ratio = 0.9;                   // 淘汰触发阈值
+  // 多租户配额权重（非空即启用）：租户在每层的份额 =
+  // 容量 × 权重/总权重。淘汰时超额最多的租户优先受害（组内纯 LRU）；
+  // 无超额租户时回退全局策略（work-conserving：空闲份额可被借用）。
+  // 未登记权重的租户份额为 0（最低优先级）。
+  std::map<std::uint32_t, double> tenant_weights;
 };
 
 // 访问统计：频次 + 最近性（逻辑时钟），驱动晋升/淘汰（需求 2.3/2.4/2.6）。
@@ -61,6 +66,7 @@ struct TierEntry {
   Tier tier = Tier::kHBM;
   std::size_t size_bytes = 0;
   AccessStats stats;
+  std::uint32_t tenant_id = 0;  // 多租户配额的归属租户（默认单租户 0）
 };
 
 // 层占用视图。
@@ -83,7 +89,9 @@ class TieredStorageManager {
   // 写入：目标层占用低于阈值时直接落层（需求 2.2）；达到/超过阈值先触发淘汰
   // （需求 2.4）。若块已在其他层，先移除旧放置以维持单层不变量（需求 2.1）。
   // 目标层未配置时落到最近的已配置较快层（无则较慢层）。
-  Status Write(const KVCacheBlock& block, Tier target);
+  // tenant_id 仅在配额启用（TierConfig::tenant_weights 非空）时参与淘汰亲和。
+  Status Write(const KVCacheBlock& block, Tier target,
+               std::uint32_t tenant_id = 0);
 
   // 读取：命中返回块并更新最近性+频次；较慢层命中记入晋升候选（需求 2.3）。
   // 未命中返回 kNotFound（需求 2.5）。
@@ -112,7 +120,7 @@ class TieredStorageManager {
   std::size_t CapacityOf(Tier tier) const;
   std::size_t EvictionThresholdOf(Tier tier) const;
   Status EnforceCapacityLocked(Tier tier);
-  Status PlaceLocked(KVCacheBlock block, Tier tier);
+  Status PlaceLocked(KVCacheBlock block, Tier tier, std::uint32_t tenant_id);
   void RemoveLocked(const BlockKey& key);
   // 最快层 S3-FIFO 受害者选择（SOSP'23，与 bench.policies.S3FifoPolicy 对齐）：
   // 小队列超预算时先清小队列（复用过→晋升主队列，一次性→受害者+幽灵），
@@ -132,6 +140,14 @@ class TieredStorageManager {
   // 新写入以「热」身份准入，避免复用块被一次性访问流量反复冲刷。
   void GhostInsertLocked(const BlockKey& key);
   bool GhostConsumeLocked(const BlockKey& key);
+  // 多租户配额（tenant_weights 非空时启用）：加权 max-min 公平。
+  bool QuotaEnabledLocked() const { return !config_.tenant_weights.empty(); }
+  double TenantShareOf(std::uint32_t tenant, Tier tier) const;
+  // 超额最多的租户的组内 LRU 受害者；无超额租户返回 nullopt。
+  std::optional<BlockKey> PickQuotaVictimLocked(Tier tier) const;
+  // 租户记账：块入层/离层/最近性变更时同步增删（仅配额启用时）。
+  void AccountInsertLocked(const TierEntry& entry);
+  void AccountEraseLocked(const TierEntry& entry);
 
   TierConfig config_;
   mutable std::mutex mu_;
@@ -164,6 +180,11 @@ class TieredStorageManager {
   static constexpr std::size_t kGhostCapacity = 8192;
   std::unordered_set<BlockKey> ghost_;
   std::deque<BlockKey> ghost_fifo_;
+  // 多租户配额记账（仅 tenant_weights 非空时维护）：每层每租户占用字节数
+  // 与组内 (最近性, 键) 有序索引（组内纯 LRU 受害者选取）。
+  std::array<std::unordered_map<std::uint32_t, std::size_t>, 3> tenant_used_;
+  std::array<std::map<std::uint32_t, std::set<VictimOrder>>, 3>
+      tenant_victim_index_;
 };
 
 }  // namespace project::storage

@@ -301,5 +301,39 @@ int main() {
         }
       });
 
+  ok &= rc::check(
+      "Feature: mooncake-kvcache-optimization, Property 23: "
+      "tenant quota shields under-share tenant from flooding neighbor",
+      [] {
+        // \u5355\u5c42 HBM 64B = 8 \u4e2a 8B \u5757\uff1b\u4e24\u79df\u6237\u5404\u5360 50% \u4efd\u989d\uff084 \u5757\uff09\u3002
+        // \u79df\u6237 1 \u5148\u5199\u6ee1\u81ea\u8eab\u4efd\u989d\uff0c\u79df\u6237 2 \u968f\u540e\u6d2a\u6c34\u5f0f\u5199\u5165\uff1a\u914d\u989d\u6dd8\u6c70\u5e94\u53ea
+        // \u727a\u7272\u8d85\u989d\u7684\u79df\u6237 2\uff08\u7ec4\u5185\u7eaf LRU\uff09\uff0c\u79df\u6237 1 \u7684\u5757\u5168\u90e8\u5b58\u6d3b\u3002
+        TierConfig config;
+        config.hbm_capacity_bytes = 64;
+        config.dram_capacity_bytes = std::nullopt;
+        config.nvme_capacity_bytes = std::nullopt;
+        config.high_water_ratio = 1.0;
+        config.tenant_weights = {{1, 0.5}, {2, 0.5}};
+        TieredStorageManager mgr(config);
+
+        for (std::uint64_t i = 0; i < 4; ++i) {  // \u79df\u6237 1\uff1a\u6070\u597d\u5360\u6ee1\u4efd\u989d\u3002
+          RC_ASSERT(mgr.Write(MakeBlock(i), Tier::kHBM, 1).ok());
+        }
+        for (std::uint64_t i = 100; i < 106; ++i) {  // \u79df\u6237 2\uff1a\u6d2a\u6c34 6 \u5757\u3002
+          RC_ASSERT(mgr.Write(MakeBlock(i), Tier::kHBM, 2).ok());
+        }
+
+        // \u79df\u6237 1 \u672a\u8d85\u989d\uff1a\u5168\u90e8\u5b58\u6d3b\uff1b\u79df\u6237 2 \u8d85\u989d\uff1a\u6700\u65e9\u4e24\u5757\u88ab\u9010\uff0c
+        // \u7559\u5b58\u6700\u65b0 4 \u5757\uff08\u6070\u4e3a\u5176\u4efd\u989d\uff09\u3002
+        for (std::uint64_t i = 0; i < 4; ++i) {
+          RC_ASSERT(mgr.Locate(BlockKey{i, 0}).hit);
+        }
+        RC_ASSERT(!mgr.Locate(BlockKey{100, 0}).hit);
+        RC_ASSERT(!mgr.Locate(BlockKey{101, 0}).hit);
+        for (std::uint64_t i = 102; i < 106; ++i) {
+          RC_ASSERT(mgr.Locate(BlockKey{i, 0}).hit);
+        }
+      });
+
   return ok ? 0 : 1;
 }

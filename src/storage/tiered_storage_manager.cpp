@@ -31,7 +31,7 @@ const char* TierName(Tier tier) noexcept {
 }
 
 TieredStorageManager::TieredStorageManager(TierConfig config)
-    : config_(config) {
+    : config_(std::move(config)) {
   fastest_tier_cache_ = ResolveConfiguredTier(Tier::kHBM);
 }
 
@@ -115,6 +115,7 @@ void TieredStorageManager::RemoveLocked(const BlockKey& key) {
   } else {
     IndexEraseLocked(it->second.entry);
   }
+  AccountEraseLocked(it->second.entry);
   used_bytes_[static_cast<std::uint8_t>(it->second.entry.tier)] -=
       it->second.entry.size_bytes;
   blocks_.erase(it);
@@ -188,6 +189,78 @@ std::optional<BlockKey> TieredStorageManager::PickVictimLocked(
   return std::get<1>(*index.begin());
 }
 
+void TieredStorageManager::AccountInsertLocked(const TierEntry& entry) {
+  if (!QuotaEnabledLocked()) {
+    return;
+  }
+  const auto t = static_cast<std::uint8_t>(entry.tier);
+  tenant_used_[t][entry.tenant_id] += entry.size_bytes;
+  tenant_victim_index_[t][entry.tenant_id].emplace(entry.stats.last_access_ts,
+                                                   entry.key);
+}
+
+void TieredStorageManager::AccountEraseLocked(const TierEntry& entry) {
+  if (!QuotaEnabledLocked()) {
+    return;
+  }
+  const auto t = static_cast<std::uint8_t>(entry.tier);
+  if (auto used_it = tenant_used_[t].find(entry.tenant_id);
+      used_it != tenant_used_[t].end()) {
+    used_it->second -= std::min(used_it->second, entry.size_bytes);
+    if (used_it->second == 0) {
+      tenant_used_[t].erase(used_it);
+    }
+  }
+  if (auto idx_it = tenant_victim_index_[t].find(entry.tenant_id);
+      idx_it != tenant_victim_index_[t].end()) {
+    idx_it->second.erase(VictimOrder{entry.stats.last_access_ts, entry.key});
+    if (idx_it->second.empty()) {
+      tenant_victim_index_[t].erase(idx_it);
+    }
+  }
+}
+
+double TieredStorageManager::TenantShareOf(std::uint32_t tenant,
+                                           Tier tier) const {
+  double total = 0.0;
+  for (const auto& [id, weight] : config_.tenant_weights) {
+    total += weight;
+  }
+  if (total <= 0.0) {
+    return 0.0;
+  }
+  const auto it = config_.tenant_weights.find(tenant);
+  const double weight = it == config_.tenant_weights.end() ? 0.0 : it->second;
+  return static_cast<double>(CapacityOf(tier)) * weight / total;
+}
+
+std::optional<BlockKey> TieredStorageManager::PickQuotaVictimLocked(
+    Tier tier) const {
+  // 加权 max-min 公平：超出自身份额最多的租户优先受害（组内纯 LRU）。
+  // 无超额租户时返回 nullopt，回退全局策略（work-conserving 借用）。
+  const auto t = static_cast<std::uint8_t>(tier);
+  double worst_overage = 0.0;
+  const std::set<VictimOrder>* worst_index = nullptr;
+  for (const auto& [tenant, index] : tenant_victim_index_[t]) {
+    if (index.empty()) {
+      continue;
+    }
+    const auto used_it = tenant_used_[t].find(tenant);
+    const double used = used_it == tenant_used_[t].end()
+                            ? 0.0
+                            : static_cast<double>(used_it->second);
+    const double overage = used - TenantShareOf(tenant, tier);
+    if (overage > worst_overage) {
+      worst_overage = overage;
+      worst_index = &index;
+    }
+  }
+  if (worst_index == nullptr) {
+    return std::nullopt;
+  }
+  return std::get<1>(*worst_index->begin());
+}
+
 void TieredStorageManager::GhostInsertLocked(const BlockKey& key) {
   if (ghost_.insert(key).second) {
     ghost_fifo_.push_back(key);
@@ -212,8 +285,14 @@ Status TieredStorageManager::EnforceCapacityLocked(Tier tier) {
   auto& used = used_bytes_[static_cast<std::uint8_t>(tier)];
   while (used > threshold) {
     const bool is_fastest = fastest_tier_cache_ && tier == *fastest_tier_cache_;
-    const auto victim_key =
-        is_fastest ? PickS3VictimLocked() : PickVictimLocked(tier);
+    // 配额启用时超额租户优先受害；无超额租户则回退全局策略。
+    std::optional<BlockKey> victim_key;
+    if (QuotaEnabledLocked()) {
+      victim_key = PickQuotaVictimLocked(tier);
+    }
+    if (!victim_key) {
+      victim_key = is_fastest ? PickS3VictimLocked() : PickVictimLocked(tier);
+    }
     if (!victim_key) {
       return Status::Make(StatusCode::kInternal,
                           "占用超容量但层内无可淘汰块");
@@ -221,6 +300,7 @@ Status TieredStorageManager::EnforceCapacityLocked(Tier tier) {
     auto it = blocks_.find(*victim_key);
     KVCacheBlock victim_block = std::move(it->second.block);
     AccessStats victim_stats = it->second.entry.stats;
+    const std::uint32_t victim_tenant = it->second.entry.tenant_id;
     RemoveLocked(*victim_key);
     if (const auto slower = NextSlowerConfigured(tier)) {
       // 降级：刷新最近性为当前逻辑时钟（等价模型 slow.admit 的
@@ -230,10 +310,12 @@ Status TieredStorageManager::EnforceCapacityLocked(Tier tier) {
       const std::size_t size = BlockSizeBytes(victim_block);
       if (size <= CapacityOf(*slower)) {
         const BlockKey key = victim_block.key;
-        const TierEntry entry{key, *slower, size, victim_stats};
+        const TierEntry entry{key, *slower, size, victim_stats,
+                              victim_tenant};
         blocks_.insert_or_assign(
             key, StoredBlock{std::move(victim_block), entry});
         IndexInsertLocked(entry);
+        AccountInsertLocked(entry);
         used_bytes_[static_cast<std::uint8_t>(*slower)] += size;
         if (Status status = EnforceCapacityLocked(*slower); !status.ok()) {
           return status;
@@ -246,7 +328,8 @@ Status TieredStorageManager::EnforceCapacityLocked(Tier tier) {
   return Status::Ok();
 }
 
-Status TieredStorageManager::PlaceLocked(KVCacheBlock block, Tier tier) {
+Status TieredStorageManager::PlaceLocked(KVCacheBlock block, Tier tier,
+                                         std::uint32_t tenant_id) {
   const std::size_t size = BlockSizeBytes(block);
   if (size > EvictionThresholdOf(tier)) {
     return Status::Make(StatusCode::kOutOfCapacity,
@@ -265,7 +348,7 @@ Status TieredStorageManager::PlaceLocked(KVCacheBlock block, Tier tier) {
     stats.access_count = 2;  // 幽灵命中：以热身份准入，免遭冷段优先淘汰。
   }
   const BlockKey key = block.key;
-  const TierEntry entry{key, tier, size, stats};
+  const TierEntry entry{key, tier, size, stats, tenant_id};
   const bool is_fastest = fastest_tier_cache_ && tier == *fastest_tier_cache_;
   StoredBlock stored{std::move(block), entry};
   if (is_fastest) {
@@ -283,17 +366,19 @@ Status TieredStorageManager::PlaceLocked(KVCacheBlock block, Tier tier) {
   if (!is_fastest) {
     IndexInsertLocked(entry);
   }
+  AccountInsertLocked(entry);
   used_bytes_[static_cast<std::uint8_t>(tier)] += size;
   return EnforceCapacityLocked(tier);
 }
 
-Status TieredStorageManager::Write(const KVCacheBlock& block, Tier target) {
+Status TieredStorageManager::Write(const KVCacheBlock& block, Tier target,
+                                   std::uint32_t tenant_id) {
   std::lock_guard<std::mutex> lock(mu_);
   const auto tier = ResolveConfiguredTier(target);
   if (!tier) {
     return Status::Make(StatusCode::kInvalidArgument, "无任何已配置存储层");
   }
-  return PlaceLocked(block, *tier);
+  return PlaceLocked(block, *tier, tenant_id);
 }
 
 Result<KVCacheBlock> TieredStorageManager::Read(const BlockKey& key) {
@@ -309,13 +394,17 @@ Result<KVCacheBlock> TieredStorageManager::Read(const BlockKey& key) {
   if (is_fastest) {
     it->second.s3_freq =
         static_cast<std::uint8_t>(std::min<int>(it->second.s3_freq + 1, 3));
+    AccountEraseLocked(it->second.entry);
     it->second.entry.stats.access_count += 1;
     it->second.entry.stats.last_access_ts = ++logical_clock_;
+    AccountInsertLocked(it->second.entry);
   } else {
     IndexEraseLocked(it->second.entry);
+    AccountEraseLocked(it->second.entry);
     it->second.entry.stats.access_count += 1;
     it->second.entry.stats.last_access_ts = ++logical_clock_;
     IndexInsertLocked(it->second.entry);
+    AccountInsertLocked(it->second.entry);
     // 较慢层命中：立即晋升到最快层（与回放模型对齐；「读穿不晋升」为负结果，
     // 见基准报告），以复用身份入 S3-FIFO 主队列。
     if (fastest_tier_cache_ &&
@@ -324,13 +413,15 @@ Result<KVCacheBlock> TieredStorageManager::Read(const BlockKey& key) {
       KVCacheBlock block = it->second.block;
       const AccessStats stats = it->second.entry.stats;
       const std::size_t size = it->second.entry.size_bytes;
+      const std::uint32_t tenant = it->second.entry.tenant_id;
       RemoveLocked(key);
       const Tier fast = *fastest_tier_cache_;
-      const TierEntry entry{key, fast, size, stats};
+      const TierEntry entry{key, fast, size, stats, tenant};
       StoredBlock promoted{std::move(block), entry};
       promoted.s3_in_main = true;
       s3_main_fifo_.push_back(key);
       blocks_.insert_or_assign(key, std::move(promoted));
+      AccountInsertLocked(entry);
       used_bytes_[static_cast<std::uint8_t>(fast)] += size;
       if (Status status = EnforceCapacityLocked(fast); !status.ok()) {
         return Result<KVCacheBlock>(status);
@@ -375,7 +466,8 @@ Status TieredStorageManager::Prefetch(const std::vector<BlockKey>& predicted) {
       continue;  // 装不进最快层：保持原层（内容不丢）。
     }
     KVCacheBlock block = it->second.block;
-    if (Status status = PlaceLocked(std::move(block), *fastest);
+    const std::uint32_t tenant = it->second.entry.tenant_id;
+    if (Status status = PlaceLocked(std::move(block), *fastest, tenant);
         !status.ok()) {
       return status;
     }

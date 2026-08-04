@@ -62,19 +62,22 @@ class PyTieredStore {
  public:
   PyTieredStore(std::optional<std::uint64_t> hbm,
                 std::optional<std::uint64_t> dram,
-                std::optional<std::uint64_t> nvme, double high_water_ratio)
+                std::optional<std::uint64_t> nvme, double high_water_ratio,
+                std::map<std::uint32_t, double> tenant_weights)
       : manager_([&] {
           TierConfig config;
           config.hbm_capacity_bytes = hbm;
           config.dram_capacity_bytes = dram;
           config.nvme_capacity_bytes = nvme;
           config.high_water_ratio = high_water_ratio;
+          config.tenant_weights = std::move(tenant_weights);
           return config;
         }()) {}
 
-  void put(const BlockKey& key, const py::bytes& payload) {
+  void put(const BlockKey& key, const py::bytes& payload,
+           std::uint32_t tenant_id) {
     const auto status =
-        manager_.Write(BlockFromPayload(key, payload), Tier::kHBM);
+        manager_.Write(BlockFromPayload(key, payload), Tier::kHBM, tenant_id);
     if (!status.ok()) {
       throw std::runtime_error(status.message());
     }
@@ -188,12 +191,15 @@ PYBIND11_MODULE(_mooncake_kvcache, m) {
 
   py::class_<PyTieredStore>(m, "TieredStore")
       .def(py::init<std::optional<std::uint64_t>, std::optional<std::uint64_t>,
-                    std::optional<std::uint64_t>, double>(),
+                    std::optional<std::uint64_t>, double,
+                    std::map<std::uint32_t, double>>(),
            py::arg("hbm_bytes") = std::optional<std::uint64_t>(1ULL << 30),
            py::arg("dram_bytes") = std::optional<std::uint64_t>(4ULL << 30),
            py::arg("nvme_bytes") = std::nullopt,
-           py::arg("high_water_ratio") = 0.9)
-      .def("put", &PyTieredStore::put)
+           py::arg("high_water_ratio") = 0.9,
+           py::arg("tenant_weights") = std::map<std::uint32_t, double>{})
+      .def("put", &PyTieredStore::put, py::arg("key"), py::arg("payload"),
+           py::arg("tenant_id") = 0)
       .def("get", &PyTieredStore::get)
       .def("exists", &PyTieredStore::exists)
       .def("prefetch", &PyTieredStore::prefetch)
