@@ -139,18 +139,43 @@ GPU KV cache 限制为 2GiB（37,440 tokens）制造真实容量压力：
 （242→416 tok/s）——验证分层 KVCache 的核心价值主张。CPU 容量充足时
 （12GB ≳ 全工作集）lru 与 s3fifo 等价（均全命中）。
 
-CPU 卸载层也承压（3GB < 工作集，40 会话 × 4 轮）时策略差异显现：
+CPU 卸载层也承压（容量 < 工作集，40 会话 × 4 轮）时策略差异显现。
+完整矩阵：3 策略 × 3 CPU 容量 × 2 次独立冷启动重复（下表为两次重复均值）：
 
-| 淘汰策略（CPU 3GB） | TTFT p50 | TTFT p95 | TTFT mean |
-|---|---:|---:|---:|
-| lru（vLLM 内置） | 0.651s | 1.134s | 0.650s |
-| **s3fifo（本项目）** | **0.491s** | **0.918s** | **0.524s** |
+| CPU 容量 | 指标 | lru | arc | **s3fifo（本项目）** |
+|---|---|---:|---:|---:|
+| 2GB | TTFT mean | 0.671s | 0.615s | **0.594s（−11.5%）** |
+| 2GB | TTFT p95 | 1.017s | 0.994s | **0.983s** |
+| 3GB | TTFT mean | 0.665s | 0.641s | **0.600s（−9.8%）** |
+| 3GB | TTFT p95 | 1.148s | 1.095s | **0.971s（−15.4%）** |
+| 4GB | TTFT mean | 0.599s | 0.582s | 0.587s（持平） |
+| 4GB | TTFT p95 | 0.972s | 1.133s | **0.965s** |
 
-真实在线负载下本项目 S3-FIFO 较 LRU：TTFT p50 **−25%**、p95 **−19%**、
-mean **−19%**——把离线 trace 的命中率优势兑现成了真实推理时延收益。
+结论：CPU 层承压（2–3GB）时本项目 S3-FIFO 的 TTFT mean 稳定优于内置
+lru **9.8–11.5%**、尾时延 p95 全容量点最优（较 lru 最高 −15.4%）；压力
+缓解（4GB）时三者收敛——与离线 trace 结论（S3-FIFO 优势来自容量受限
+时的抗扫描淘汰）一致。
 （方法注记：每配置独立冷启动服务、同一确定性负载 seed=42；5090 需
 `VLLM_USE_FLASHINFER_SAMPLER=0` + `VLLM_ATTENTION_BACKEND=TRITON_ATTN`
-规避 flashinfer 对 sm_120 的 JIT 限制。）
+规避 flashinfer 对 sm_120 的 JIT 限制。原始数据 18 行 JSONL 见
+`docs/benchmarks/online_matrix.jsonl`。）
+
+### 三层在线验证（GPU→CPU→NVMe，S3FIFOTieringOffloadingSpec）
+
+把本项目「HBM/DRAM/NVMe 三层降级链」的完整形态搬到真实在线路径：
+`S3FIFOTieringOffloadingSpec`（TieringOffloadingSpec 子类，主层 S3-FIFO +
+`fs` 次级层落盘 NVMe）。同一负载（40 会话 × 4 轮）、同一 CPU 容量
+1.5GB 直接对比：
+
+| 配置（CPU 1.5GB） | TTFT p50 | TTFT mean | 吞吐 tok/s |
+|---|---:|---:|---:|
+| 两层：GPU→CPU（s3fifo） | 0.652s | 0.653s | 243 |
+| **三层：GPU→CPU→NVMe（本项目）** | **0.292s** | **0.366s** | **394** |
+
+NVMe 第三层吸收 CPU 层被逐块（实测落盘 5.9GB），TTFT p50 **2.2×**
+（−55%）、吞吐 **1.6×**——在 CPU 内存受限的真实部署形态下，三层设计
+的收益在线兑现。这与离线容量扩展研究（slow 1×→8× 命中率单调抬升）
+互相印证：分层链越深，同等快层预算下可留存的复用集越大。
 
 ## 多租户配额隔离（tenant quota）
 

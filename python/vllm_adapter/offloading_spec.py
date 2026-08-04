@@ -27,6 +27,7 @@ from vllm.v1.kv_offload.base import OffloadKey, ReqContext
 from vllm.v1.kv_offload.cpu import manager as cpu_manager
 from vllm.v1.kv_offload.cpu.policies.base import BlockStatus, CachePolicy
 from vllm.v1.kv_offload.cpu.spec import CPUOffloadingSpec
+from vllm.v1.kv_offload.tiering.spec import TieringOffloadingSpec
 
 _FREQ_CAP = 3  # 频次上限（与 C++ s3_freq 上限一致）
 
@@ -169,6 +170,21 @@ class S3FIFOCachePolicy(CachePolicy):
 
 class S3FIFOOffloadingSpec(CPUOffloadingSpec):
     """CPU 卸载 spec：把淘汰策略切换为本项目的 S3-FIFO。"""
+
+    def __init__(self, config) -> None:
+        super().__init__(config)
+        cpu_manager._CACHE_POLICIES.setdefault("s3fifo", S3FIFOCachePolicy)
+        self.eviction_policy = "s3fifo"
+
+
+class S3FIFOTieringOffloadingSpec(TieringOffloadingSpec):
+    """三层卸载 spec（GPU→CPU→NVMe/FS 等次级层）+ S3-FIFO 主层策略。
+
+    次级层经 kv_connector_extra_config 的 `secondary_tiers` 配置（如
+    `[{"type": "fs", "root_dir": "/data/kvcache"}]`），CPU 主层淘汰
+    策略切换为本项目 S3-FIFO——被逐块降级到次级层而非丢弃，对应
+    本项目 C++ 三层降级链（HBM→DRAM→NVMe）的在线形态。
+    """
 
     def __init__(self, config) -> None:
         super().__init__(config)
