@@ -17,3 +17,7 @@
 {"tag": "arc-cpu4000000000-rep2", "requests": 160, "ttft_p50_s": 0.55, "ttft_p95_s": 1.078, "ttft_mean_s": 0.58, "wall_s": 38.5, "gen_tokens": 10171, "tokens_per_s": 264.5}
 {"tag": "s3fifo-cpu4000000000-rep2", "requests": 160, "ttft_p50_s": 0.589, "ttft_p95_s": 0.975, "ttft_mean_s": 0.59, "wall_s": 42.6, "gen_tokens": 10202, "tokens_per_s": 239.2}
 MATRIX_DONE
+{"tag": "scan-lru-rep1", "requests": 96, "ttft_p50_s": 0.498, "ttft_p95_s": 2.028, "ttft_mean_s": 0.688, "wall_s": 63.1, "gen_tokens": 6132, "tokens_per_s": 97.2}
+{"tag": "scan-s3fifo-rep1", "requests": 96, "ttft_p50_s": 0.506, "ttft_p95_s": 1.675, "ttft_mean_s": 0.684, "wall_s": 63.3, "gen_tokens": 6104, "tokens_per_s": 96.4}
+{"tag": "scan-lru-rep2", "requests": 96, "ttft_p50_s": 0.505, "ttft_p95_s": 2.058, "ttft_mean_s": 0.699, "wall_s": 63.9, "gen_tokens": 6132, "tokens_per_s": 96.0}
+{"tag": "scan-s3fifo-rep2", "requests": 96, "ttft_p50_s": 0.518, "ttft_p95_s": 1.676, "ttft_mean_s": 0.678, "wall_s": 63.4, "gen_tokens": 6104, "tokens_per_s": 96.2}

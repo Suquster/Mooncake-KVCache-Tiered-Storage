@@ -98,9 +98,21 @@ async def run(args: argparse.Namespace) -> None:
                 results.append((ttft, total, tokens))
                 history = prompt + " " + _make_text(rng, args.max_tokens)
 
+        async def run_scanner(idx: int) -> None:
+            # 扫描干扰：每轮全新长前缀（零复用），冲刷缓存但不计入统计。
+            srng = random.Random(1000 + idx)
+            for _ in range(args.rounds):
+                prompt = _make_text(srng, args.prefix_tokens) + " 摘要："
+                async with sem:
+                    await _one_request(
+                        http, args.base_url, args.model, prompt,
+                        args.max_tokens,
+                    )
+
         start = time.perf_counter()
         await asyncio.gather(
-            *(run_session(i) for i in range(args.sessions))
+            *(run_session(i) for i in range(args.sessions)),
+            *(run_scanner(i) for i in range(args.scan_sessions)),
         )
         wall = time.perf_counter() - start
 
@@ -133,6 +145,7 @@ def main() -> None:
     parser.add_argument("--prefix-tokens", type=int, default=6000)
     parser.add_argument("--max-tokens", type=int, default=64)
     parser.add_argument("--concurrency", type=int, default=8)
+    parser.add_argument("--scan-sessions", type=int, default=0)
     parser.add_argument("--tag", default="run")
     args = parser.parse_args()
     asyncio.run(run(args))
